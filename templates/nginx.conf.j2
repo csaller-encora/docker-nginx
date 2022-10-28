@@ -1,51 +1,11 @@
-user  nginx;
-worker_processes {{ env("WORKER_PROCESSES", "1") }};
-
-error_log  /dev/stderr {% if DEBUG == 'true' %}debug{% else %}{{ env("LOG_LEVEL", "notice")}}{% endif %};
-pid        /run/nginx.pid;
-
-events {
-    worker_connections  1024;
-}
-
-http {
-  include       /etc/nginx/mime.types;
-  default_type  application/octet-stream;
-
-  log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-                    '$status $body_bytes_sent "$http_referer" '
-                    '"$http_user_agent" "$http_x_forwarded_for"';
-
-  access_log  /dev/stdout;
-
-  sendfile        on;
-  server_tokens   off;
-  {%- if REAL_IP == 'true' or REAL_IP_CIDRS %}
-  real_ip_header {{ env('REAL_IP_HEADER', 'X-Forwarded-For') }};
-  proxy_ignore_client_abort on;
-  {%- for cidr in REAL_IP_CIDRS.split(',') %}
-  set_real_ip_from {{ cidr }};
-  {%- endfor %}
-  {% endif %}
-  keepalive_timeout  {{ env("KEEPALIVE_TIMEOUT", "65") }};
-  proxy_read_timeout {{ env("PROXY_READ_TIMEOUT", "60s") }};
-  proxy_send_timeout {{ env("PROXY_SEND_TIMEOUT", "60s") }};
-  client_max_body_size {{ env("CLIENT_MAX_BODY_SIZE", "1m") }};
-  {% if GZIP == 'true' %}
-  gzip        on;
-  gzip_types  image/svg+xml text/plain text/css application/json application/javascript application/x-javascript text/xml application/xml application/xml+rss text/javascript image/x-icon;
-  gzip_disable "msie6";
-  gzip_vary on;
-  gzip_proxied any;
-  gzip_min_length 250;
-  {% endif %}
-  map $http_x_forwarded_proto $proxy_x_forwarded_proto {
-    default $http_x_forwarded_proto;
-    ''      $scheme;
-  }
-  map $http_x_forwarded_port $proxy_x_forwarded_port {
-    default $http_x_forwarded_port;
-    ''      $server_port;
-  }
-  include /etc/nginx/conf.d/*.conf;
+server {
+    listen 80;
+    server_name {{ env('SOURCE_DOMAIN_NAME', "_") }};
+    location / {
+        proxy_pass http://{{ env('DESTINATION_URL', "localhost") }};
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 }
