@@ -1,11 +1,13 @@
-#!/bin/ash -e
+#!/bin/ash
 
-if [ ${#} -eq 0 ]; then
-  echo "Starting docker-nginx"
+mkdir -p /run/nginx/
+rm -rf /run/nginx/nginx.pid
 
-  j2 --undefined /code/nginx.conf.j2 > /etc/nginx/nginx.conf
+  sed \
+    -e "s/:DESTINATION_URL:/$DESTINATION_URL\//g" \
+    /code/nginx.conf.templ > /etc/nginx/conf.d/default.conf
 
-  echo "Starting nginx"
+  echo "Starting nginx..."
   exec nginx -g 'daemon off;'
 else
   exec "${@}"
